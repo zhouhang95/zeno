@@ -7,6 +7,8 @@
 #include "launch/ztcpserver.h"
 #include "launch/corelaunch.h"
 #include "startup/zstartup.h"
+#include <style/zenostyle.h>
+#include "settings/zenosettingsmanager.h"
 
 
 ZenoApplication::ZenoApplication(int &argc, char **argv)
@@ -41,7 +43,7 @@ QString ZenoApplication::readQss(const QString& qssPath)
     file.setFileName(qssPath);
     ret = file.open(QIODevice::ReadOnly | QIODevice::Text);
     ZASSERT_EXIT(ret, "");
-    return file.readAll();
+    return ZenoStyle::dpiScaleSheet(file.readAll());
 }
 
 void ZenoApplication::initStyleSheets()
@@ -56,24 +58,39 @@ void ZenoApplication::initStyleSheets()
     qss += readQss(":/stylesheet/scrollbar.qss");
     qss += readQss(":/stylesheet/spinbox.qss");
     qss += readQss(":/stylesheet/mainwindow.qss");
+    qss += readQss(":/stylesheet/checkbox.qss");
+    qss += readQss(":/stylesheet/tabwidget.qss");
     setStyleSheet(qss);
 }
 
 void ZenoApplication::initFonts()
 {
-    QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans/HarmonyOS_Sans_Black.ttf");
-    QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans/HarmonyOS_Sans_Regular.ttf");
-    QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans/HarmonyOS_Sans_Light.ttf");
-    QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans/HarmonyOS_Sans_Medium.ttf");
-    QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans/HarmonyOS_Sans_Thin.ttf");
-    QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans/HarmonyOS_Sans_Bold.ttf");
+    QFontDatabase::addApplicationFont(":/font/Noto_Sans_SC/NotoSansSC-Black.otf");
+    QFontDatabase::addApplicationFont(":/font/Noto_Sans_SC/NotoSansSC-Bold.otf");
+    QFontDatabase::addApplicationFont(":/font/Noto_Sans_SC/NotoSansSC-Light.otf");
+    QFontDatabase::addApplicationFont(":/font/Noto_Sans_SC/NotoSansSC-Medium.otf");
+    QFontDatabase::addApplicationFont(":/font/Noto_Sans_SC/NotoSansSC-Regular.otf");
+    QFontDatabase::addApplicationFont(":/font/Noto_Sans_SC/NotoSansSC-Thin.otf");
 
-    //QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Black.ttf");
-    //QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Bold.ttf");
-    //QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Light.ttf");
-    //QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Medium.ttf");
-    //QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Regular.ttf");
-    //QFontDatabase::addApplicationFont(":/font/HarmonyOS_Sans_SC/HarmonyOS_Sans_SC_Thin.ttf");
+    QFontDatabase::addApplicationFont(":/font/PuHuiTi/Alibaba-PuHuiTi-Bold.ttf");
+    QFontDatabase::addApplicationFont(":/font/PuHuiTi/Alibaba-PuHuiTi-Heavy.ttf");
+    QFontDatabase::addApplicationFont(":/font/PuHuiTi/Alibaba-PuHuiTi-Light.ttf");
+    QFontDatabase::addApplicationFont(":/font/PuHuiTi/Alibaba-PuHuiTi-Medium.ttf");
+    QFontDatabase::addApplicationFont(":/font/PuHuiTi/Alibaba-PuHuiTi-Regular.ttf");
+
+    QFontDatabase::addApplicationFont(":/font/Segoe/SEGOEUI.TTF");
+
+    QSettings settings(zsCompanyName, zsEditor);
+    QVariant use_chinese = settings.value("use_chinese");
+    bool bCN = !use_chinese.isNull() && use_chinese.toBool();
+    if (bCN) {
+        QFont font("Alibaba PuHuiTi", 10);
+        //QFont font("Noto Sans SC", 10);
+        setFont(font);
+    } else {
+        QFont font("Segoe UI", 10);
+        setFont(font);
+    }
 }
 
 GraphsManagment *ZenoApplication::graphsManagment() const

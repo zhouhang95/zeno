@@ -22,7 +22,7 @@ struct DrawOptions {
 
     std::shared_ptr<IGraphicHandler> handler;
 
-    glm::vec3 bgcolor{0.23f, 0.23f, 0.23f};
+    glm::vec3 bgcolor{0.18f, 0.20f, 0.22f};
 };
 
 }

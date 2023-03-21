@@ -161,6 +161,8 @@ static int runner_start(std::string const &progJson, int sessionid, char* cached
 
 int runner_main(int sessionid, int port, char* cachedir);
 int runner_main(int sessionid, int port, char* cachedir) {
+//     while (!IsDebuggerPresent()) ;
+
 #ifdef __linux__
     stderr = freopen("/dev/stdout", "w", stderr);
 #endif

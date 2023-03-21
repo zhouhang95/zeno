@@ -3,8 +3,10 @@
 #include "../comctrl/ztoolbutton.h"
 #include "../comctrl/zobjectbutton.h"
 #include "../comctrl/gv/zenoparamwidget.h"
+#include "../comctrl/zdocktabwidget.h"
 #include <QScreen>
 #include <QtSvg/QSvgRenderer>
+#include <zenoedit/zenoapplication.h>
 
 
 ZenoStyle::ZenoStyle()
@@ -32,6 +34,47 @@ qreal ZenoStyle::dpiScaled(qreal value)
 QSize ZenoStyle::dpiScaledSize(const QSize &value)
 {
     return QSize(ZenoStyle::dpiScaled(value.width()), ZenoStyle::dpiScaled(value.height()));
+}
+
+QSizeF ZenoStyle::dpiScaledSize(const QSizeF& sz)
+{
+    return QSizeF(ZenoStyle::dpiScaled(sz.width()), ZenoStyle::dpiScaled(sz.height()));
+}
+
+QMargins ZenoStyle::dpiScaledMargins(const QMargins& margins)
+{
+    return QMargins(ZenoStyle::dpiScaled(margins.left()), ZenoStyle::dpiScaled(margins.top()),
+                    ZenoStyle::dpiScaled(margins.right()), ZenoStyle::dpiScaled(margins.bottom()));
+}
+
+QString ZenoStyle::dpiScaleSheet(const QString &sheet) {
+    if (sheet.isEmpty()) {
+        return sheet;
+    }
+
+    qreal scale = ZenoStyle::dpiScaled(1);
+    if (scale == 1.0) {
+        return sheet;
+    }
+
+    QString tempStyle = sheet;
+    QRegExp rx("\\d+px", Qt::CaseInsensitive);
+    rx.setMinimal(true);
+    int index = -1;
+    while ((index = rx.indexIn(tempStyle, index + 1)) >= 0) {
+        int capLen = rx.cap(0).length() - 2;
+        QString strNum = tempStyle.mid(index, capLen);
+        strNum = QString::number(qRound(strNum.toInt() * scale));
+        tempStyle.replace(index, capLen, strNum);
+        index += strNum.length();
+        if (index > tempStyle.size() - 2) {
+            break;
+        }
+    }
+
+    tempStyle.replace("FontFamily", zenoApp->font().family());
+
+    return tempStyle;
 }
 
 QSize ZenoStyle::sizeFromContents(ContentsType type, const QStyleOption* option, const QSize& size, const QWidget* widget) const
@@ -70,24 +113,30 @@ void ZenoStyle::drawPrimitive(PrimitiveElement pe, const QStyleOption* option, Q
             QRect r = option->rect;
             bool bHor = option->state & QStyle::State_Horizontal;
             bool mouseOver = option->state & QStyle::State_MouseOver;
-            QRect buttonRc;
-            int btnW = 0, btnH = 0;
-            if (bHor) {
-                painter->fillRect(r, QColor("#1B1D21"));
-                btnW = dpiScaled(30), btnH = dpiScaled(3);
+            bool bBottomSpliter = false;
+
+            QPoint pt = QCursor::pos();
+            if (const QMainWindow* pWin = qobject_cast<const QMainWindow*>(w))
+            {
+                QWidget* pTimeline = pWin->centralWidget();
+                QRect rc = pTimeline->geometry();
+                rc.adjust(0, -10, 0, 0);
+                if (rc.contains(pt))
+                {
+                    bBottomSpliter = true;
+                }
+            }
+
+            if (mouseOver && !bBottomSpliter) {
+                painter->setPen(QColor("#4B9EF4"));
+                painter->fillRect(r, QColor("#4B9EF4"));
             }
             else {
-                painter->fillRect(r, QColor("#1B1D21"));
-                btnW = dpiScaled(3), btnH = dpiScaled(30);
+                //painter->setPen(QColor("#000000"));
+                painter->fillRect(r, QColor("#191D21"));
             }
 
-            buttonRc = QRect(r.center() - QPoint(btnW / 2, btnH / 2), QSize(btnW, btnH));
-            painter->fillRect(buttonRc, QColor("#2E3138"));
-
-            if (mouseOver) {
-                painter->fillRect(r, QColor(242, 103, 34, 64));
-            }
-
+            //painter->drawRect(r.adjusted(0,0,-1,-1));
             return;
         }
     }
@@ -111,7 +160,8 @@ void ZenoStyle::drawControl(ControlElement element, const QStyleOption* option, 
             painter->save();
             editRect.adjust(cb->textMargin, 0, 0, 0);
             painter->setClipRect(editRect);
-            painter->setFont(QFont("HarmonyOS Sans", 12));
+            QFont font = zenoApp->font();
+            painter->setFont(font);
             if (!cb->currentIcon.isNull()) {
                 //todo
             }
@@ -159,6 +209,7 @@ QRect ZenoStyle::subControlRect(ComplexControl cc, const QStyleOptionComplex* op
     {
         const ZStyleOptionToolButton* opt = qstyleoption_cast<const ZStyleOptionToolButton*>(option);
         Q_ASSERT(opt);
+        ZToolButton* pToolBtn = qobject_cast<ZToolButton*>(const_cast<QWidget*>(widget));
 
         switch (sc)
         {
@@ -178,7 +229,21 @@ QRect ZenoStyle::subControlRect(ComplexControl cc, const QStyleOptionComplex* op
             }
             else if (opt->buttonOpts & ZToolButton::Opt_TextRightToIcon)
             {
-                return QRect(); //todo
+                QMargins margins = pToolBtn->margins();
+                int xleft = margins.left();
+                int ytop = opt->rect.height() / 2 - opt->iconSize.height() / 2;
+                QRect rcIcon = QRect(xleft, ytop, opt->iconSize.width(), opt->iconSize.height());
+                return rcIcon;
+            }
+            else if (opt->buttonOpts & ZToolButton::Opt_TextLeftToIcon)
+            {
+                QMargins margins = pToolBtn->margins();
+                QRect rcText = subControlRect(cc, option, static_cast<QStyle::SubControl>(SC_ZenoToolButtonText), widget);
+                int iconTextSpacing = pixelMetric(static_cast<QStyle::PixelMetric>(ZenoStyle::PM_IconTextSpacing), nullptr, widget);
+                int xleft = rcText.right() + iconTextSpacing;
+                int ytop = opt->rect.height() / 2 - opt->iconSize.height() / 2;
+                QRect rcIcon = QRect(xleft, ytop, opt->iconSize.width(), opt->iconSize.height());
+                return rcIcon;
             }
             else
             {
@@ -211,11 +276,30 @@ QRect ZenoStyle::subControlRect(ComplexControl cc, const QStyleOptionComplex* op
             }
             else if (opt->buttonOpts & ZToolButton::Opt_TextRightToIcon)
             {
-                return QRect(); //todo
+                QFontMetrics fontMetrics(opt->font);
+                QRect rcIcon = subControlRect(cc, option, static_cast<QStyle::SubControl>(SC_ZenoToolButtonIcon), widget);
+                int iconTextSpacing = pixelMetric(static_cast<QStyle::PixelMetric>(ZenoStyle::PM_IconTextSpacing), nullptr, widget);
+                int textWidth = fontMetrics.horizontalAdvance(opt->text);
+                int textHeight = fontMetrics.height();
+                int xleft = rcIcon.right() + iconTextSpacing;
+                int ypos = opt->rect.height() / 2 - textHeight / 2;
+                return QRect(xleft, ypos, textWidth, textHeight);
             }
-            else
+            else if (opt->buttonOpts & ZToolButton::Opt_TextLeftToIcon)
             {
-                return QRect();
+                QFontMetrics fontMetrics(opt->font);
+                int textWidth = fontMetrics.horizontalAdvance(opt->text);
+                int textHeight = fontMetrics.height();
+                QMargins margins = pToolBtn->margins();
+                int xleft = margins.left();
+                int ytop = opt->rect.height() / 2 - textHeight / 2;
+                QRect rcText = QRect(xleft, ytop, textWidth, textHeight);
+                return rcText;
+            }
+            else if (opt->buttonOpts & ZToolButton::Opt_HasText)
+            {
+                QMargins margins = pToolBtn->margins();
+                return opt->rect.adjusted(margins.left(), margins.top(), -margins.right(), -margins.bottom());
             }
         }
         case SC_ZenoToolButtonArrow:
@@ -233,6 +317,10 @@ int ZenoStyle::styleHint(StyleHint sh, const QStyleOption* opt, const QWidget* w
 	//if (QStyle::SH_ItemView_PaintAlternatingRowColorsForEmptyArea == sh)
 	//	return 1;
     if (QStyle::SH_MenuBar_AltKeyNavigation == sh)
+        return 0;
+    if (QStyle::SH_Slider_AbsoluteSetButtons == sh)
+        return Qt::LeftButton;
+    if (QStyle::SH_ComboBox_AllowWheelScrolling == sh)
         return 0;
     return QProxyStyle::styleHint(sh, opt, w, shret);
 }
@@ -257,6 +345,7 @@ int ZenoStyle::pixelMetric(PixelMetric m, const QStyleOption* option, const QWid
         case PM_ButtonRightMargin:  return 9;
         case PM_ButtonTopMargin:
         case PM_ButtonBottomMargin: return 4;
+        case PM_IconTextSpacing:    return ZenoStyle::dpiScaled(6);
         }
     }
     switch (m)
@@ -279,7 +368,15 @@ int ZenoStyle::pixelMetric(PixelMetric m, const QStyleOption* option, const QWid
         *  actually, when there is not specific style selector, the qt will choose base style for the result.*/
         case QStyle::PM_DockWidgetHandleExtent:
         case QStyle::PM_DockWidgetSeparatorExtent: {
-            return dpiScaled(7);
+            return dpiScaled(4);
+        }
+        case QStyle::PM_DockWidgetFrameWidth: {
+            return base::pixelMetric(m, option, widget);
+        }
+        case QStyle::PM_CheckBoxLabelSpacing: {
+            if (qobject_cast<const ZCheckBox *>(widget))
+                return 0;
+            return base::pixelMetric(m, option, widget);
         }
     }
     return base::pixelMetric(m, option, widget);
@@ -333,13 +430,30 @@ void ZenoStyle::drawZenoToolButton(const ZStyleOptionToolButton* option, QPainte
     QRect rcArrow = subControlRect(cc, option, static_cast<QStyle::SubControl>(SC_ZenoToolButtonArrow), widget);
 
     //draw the background
-    if (option->buttonEnabled && (option->state & (State_MouseOver | State_On)))
+    if (option->bDrawBackground)
     {
         //QRect rect = option->rect.adjusted(0, 0, -1, -1);       //???
         QRect rect = option->rect;
-        //todo: round corner
-        QBrush bgBrush = option->palette.brush(QPalette::Active, QPalette::Window);
-        painter->fillRect(rect, bgBrush);
+        if (option->state & (State_MouseOver | State_On))
+        {
+            QBrush bgBrush = option->palette.brush(QPalette::Active, QPalette::Window);
+            if (bgBrush.color().isValid())
+            {
+                QPainterPath path;
+                path.addRoundedRect(rect, option->bgRadius, option->bgRadius);
+                painter->fillPath(path, bgBrush);
+            }
+        }
+        else
+        {
+            QBrush bgBrush = option->palette.brush(QPalette::Active, QPalette::Window);
+            if (bgBrush.color().isValid())
+            {
+                QPainterPath path;
+                path.addRoundedRect(rect, option->bgRadius, option->bgRadius);
+                painter->fillPath(path, bgBrush);
+            }
+        }
     }
 
     //draw icon 
@@ -356,7 +470,13 @@ void ZenoStyle::drawZenoToolButton(const ZStyleOptionToolButton* option, QPainte
         else
             mode = QIcon::Normal;
 
-        option->icon.paint(painter, rcIcon, Qt::AlignCenter, mode);
+        QIcon::State state;
+        if (pToolButton->isChecked())
+            state = QIcon::On;
+        else
+            state = QIcon::Off;
+
+        option->icon.paint(painter, rcIcon, Qt::AlignCenter, mode, state);
     }
 
     //draw text
@@ -382,7 +502,14 @@ void ZenoStyle::drawZenoToolButton(const ZStyleOptionToolButton* option, QPainte
             painter->save();
             painter->setFont(option->font);
             painter->setPen(text_color);
-            
+            painter->restore();
+        }
+        else
+        {
+            painter->save();
+            painter->setFont(option->font);
+            painter->setPen(text_color);
+            painter->drawText(rcText, Qt::AlignCenter, option->text);
             painter->restore();
         }
     }

@@ -4,7 +4,15 @@ message(STATUS "Found Qt5 version ${Qt5_VERSION}: ${Qt5_DIR}")
 
 file(GLOB_RECURSE source CONFIGURE_DEPENDS *.h *.cpp *.ui)
 file(GLOB_RECURSE resource CONFIGURE_DEPENDS *.qrc)
-qt5_add_big_resources(source ${resource})  # cihou msvc: fatal error C1060: compiler is out of heap space
+file(GLOB_RECURSE bigresource CONFIGURE_DEPENDS *icons.qrc *font.qrc)
+FOREACH(item ${resource})
+    IF(item IN_LIST bigresource)
+        LIST(REMOVE_ITEM resource ${item})
+    ENDIF(item IN_LIST bigresource)
+ENDFOREACH(item)
+
+qt5_add_big_resources(source ${bigresource})  # cihou msvc: fatal error C1060: compiler is out of heap space
+qt5_add_resources(source ${resource})
 
 add_executable(zenoedit ${source}) 
 
@@ -39,3 +47,9 @@ endif()
 if (ZENO_INSTALL_TARGET)
     install(TARGETS zenoedit EXPORT ZenoTargets)
 endif()
+
+#add_custom_command(
+#    TARGET zenoedit
+#    PRE_BUILD
+#    COMMAND ${CMAKE_COMMAND} -E remove -f "qrc_icons.o" "qrc_font.o"
+#)

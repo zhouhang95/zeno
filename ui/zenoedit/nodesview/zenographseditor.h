@@ -17,7 +17,7 @@ namespace Ui
 class ZenoGraphsEditor : public QWidget
 {
     Q_OBJECT
-
+  public:
     enum SideBarItem
     {
         Side_Subnet,
@@ -29,6 +29,7 @@ public:
     ZenoGraphsEditor(ZenoMainWindow* pMainWin);
     ~ZenoGraphsEditor();
     void activateTab(const QString& subGraphName, const QString& path = "", const QString& objId = "", bool isError = false);
+    void showFloatPanel(const QModelIndex &subgIdx, const QModelIndexList &nodes);
 
 public slots:
 	void resetModel(IGraphsModel* pModel);
@@ -42,6 +43,12 @@ public slots:
     void onSearchOptionClicked();
     void onPageActivated(const QPersistentModelIndex& subgIdx, const QPersistentModelIndex& nodeIdx);
     void onLogInserted(const QModelIndex& parent, int first, int last);
+    void onSubnetListPanel(bool bShow, SideBarItem item);
+    void onAction(QAction* pAction, const QVariantList& args = QVariantList(), bool bChecked = false);
+    void onCommandDispatched(QAction* pAction, bool bTriggered);
+
+signals:
+    void zoomed(qreal);
 
 private slots:
 	void onSubGraphsToRemove(const QModelIndex&, int, int);
