@@ -45,8 +45,8 @@ public:
       NewGraph->loadGraph(InJson.c_str());
 
       // Run graph
-      NewGraph->applyNodesToExec();
       try {
+          NewGraph->applyNodesToExec();
       } catch (...) {
           std::cerr << "There is an exception happened." << std::endl;
       }
